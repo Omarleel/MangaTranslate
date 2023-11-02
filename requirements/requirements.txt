@@ -1,0 +1,15 @@
+easyocr
+manga-ocr
+deep_translator
+reportlab
+natsort
+Pillow==10.0
+wget
+paddlepaddle-gpu
+paddleocr
+pydrive
+gdown
+PyQt5
+einops
+colorama
+nest_asyncio
