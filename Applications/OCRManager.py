@@ -126,9 +126,14 @@ class OCRManager:
         texto = ""
         for i, line in enumerate(resultado_paddle[0]):
             linea_actual = line[-1][0]
-            if (i+1) < len(resultado_paddle[0]):  # Si no es la última línea
-                texto += linea_actual.replace("~", "")
+            if idioma_paddle == "en":
+                if i > 0:
+                    texto += " " + linea_actual
+                else:
+                    texto += linea_actual
             else:
-                texto += linea_actual
-
+                if (i+1) < len(resultado_paddle[0]):  # Si no es la última línea
+                    texto += linea_actual.replace("~", "")
+                else:
+                    texto += linea_actual
         return texto

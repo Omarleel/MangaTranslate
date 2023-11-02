@@ -301,15 +301,18 @@ class Processor:
             elif idioma_entrada == "Inglés":
                 paddle_idioma = "en"
                 texto = self.ocr_manager.perform_paddle_ocr(paddle_idioma, region_alrededor)
-                texto = re.sub(r'(?<=[a-zA-Z])\.(?=[a-zA-Z])', '. ', texto)
-                oraciones = texto.split('. ')
-                texto = '. '.join(oracion.capitalize() for oracion in oraciones)
+                if texto:
+                    texto = re.sub(r'(?<=[a-zA-Z])\.(?=[a-zA-Z])', '. ', texto)
+                    texto = texto[0].upper() + texto[1:]
+                    oraciones = texto.split('. ')
+                    texto = '. '.join(oracion.capitalize() for oracion in oraciones)
 
             texto_traducido = self.utilities.traducir_texto(texto, self.app_window.dropdown_idioma_entrada.currentText(), self.app_window.dropdown_idioma_salida.currentText())
             if texto_traducido is not None and len(texto_traducido.split()) > 0:
                 texto_traducido = self.text_image_processor.reemplazar_caracter_especial(texto_traducido)
                 fuente, altoParrafo, espacio_entre_lineas = self.text_image_processor.obtener_propiedades_fuente(widthMax_tra, heightMax_tra, texto_traducido)
                 texto_traducido = self.text_image_processor.reducir_vocales(texto_traducido)
+                
                 if self.text_image_processor.validar_texto(texto_traducido, fuente, widthMax_tra, heightMax_tra) == False:
                     continue                
                 palabras = texto_traducido.split(" ")
