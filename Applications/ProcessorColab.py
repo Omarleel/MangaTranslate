@@ -150,12 +150,14 @@ class Processor:
 
         self.app_colab.progressbar_procesamiento.value = 100
         
-        ruta_transcripcion = os.path.join(ruta_carpeta_salida, 'transcripcion.json')
-        ruta_traduccion = os.path.join(ruta_carpeta_salida, 'traduccion.json')
-        self.app_colab.drive_manager.upload_file(ruta_transcripcion, ruta_carpeta_salida)
-        self.app_colab.drive_manager.upload_file(ruta_traduccion, ruta_carpeta_salida)
+        ruta_transcripcion = os.path.join(RUTA_LOCAL_TEMPORAL, 'transcripcion.json')
+        ruta_traduccion = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.json')
         self.json_transcripcion.guardar_en_archivo(ruta_transcripcion)
         self.json_traduccion.guardar_en_archivo(ruta_traduccion)
+        self.app_colab.drive_manager.upload_file(ruta_transcripcion, ruta_carpeta_salida)
+        self.app_colab.drive_manager.upload_file(ruta_traduccion, ruta_carpeta_salida)
+        os.remove(ruta_transcripcion)
+        os.remove(ruta_traduccion)
         if opcion_acciones == "Solo traducir" or opcion_acciones == "Limpiar y traducir" and tipo_limpieza != "Limpieza con transparencia":
             self.utilities.guardar_pdf()
             self.app_colab.drive_manager.upload_file(ruta_pdf_resultante, ruta_carpeta_salida)
