@@ -325,14 +325,14 @@ class Processor:
             self.json_transcripcion.agregar_a_sublista(
                 'Transcripción', self.indice_imagen,
                 'Globos de texto', {
-                    'Coordenadas': [centroide_x, centroide_y],
+                    'Coordenadas': [[x_tra, y_tra], [x_tra + w_tra, y_tra + h_tra]],
                     'Texto': texto
                 }
             )
             self.json_traduccion.agregar_a_sublista(
                 'Traducción', self.indice_imagen,
                 'Globos de texto', {
-                    'Coordenadas': [centroide_x, centroide_y],
+                    'Coordenadas': [[x_tra, y_tra], [x_tra + w_tra, y_tra + h_tra]],
                     'Texto': texto_traducido
                 }
             )
