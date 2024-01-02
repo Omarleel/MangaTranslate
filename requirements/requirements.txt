@@ -7,7 +7,7 @@ Pillow==10.0
 wget
 paddlepaddle-gpu
 paddleocr
-pydrive
+pydrive2
 gdown
 PyQt5
 einops

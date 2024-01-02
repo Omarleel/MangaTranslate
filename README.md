@@ -25,7 +25,7 @@ Antes de utilizar MangaTranslate, asegúrate de tener instalados los siguientes 
 - Pillow: Una biblioteca para manipulación de imágenes en Python.
 - Shapely: Una biblioteca de Python para el procesamiento y análisis de geometría.
 - Gdown: Una herramienta y biblioteca de Python para descargar archivos y datasets de Google Drive.
-- Pydrive: Una biblioteca de Python que envuelve la API de Google Drive, facilitando las operaciones de carga y descarga de archivos.
+- pydrive2: Una biblioteca de Python que envuelve la API de Google Drive, facilitando las operaciones de carga y descarga de archivos.
 
 ## Dependencias Adicionales
 Para la correcta ejecución de este proyecto en entornos como Google Colab, se requiere la instalación de ciertas dependencias adicionales. A continuación, se describen los pasos:

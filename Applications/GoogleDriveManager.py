@@ -3,9 +3,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.getcwd()))
 from Utils.Constantes import RUTA_REMOTA, RUTA_LOCAL_ZIPS
-from pydrive.auth import GoogleAuth
+from pydrive2.auth import GoogleAuth
 from google.colab import auth
-from pydrive.drive import GoogleDrive
+from pydrive2.drive import GoogleDrive
 from oauth2client.client import GoogleCredentials
 from urllib.parse import urlparse, parse_qs
 from shutil import unpack_archive

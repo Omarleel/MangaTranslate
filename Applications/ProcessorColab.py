@@ -7,6 +7,7 @@ from Applications.Utilities import Utilities
 from Applications.OCRManager import OCRManager
 from Applications.BubbleDetector import BubbleDetector
 from Applications.JsonGenerator import JsonGenerator
+from Applications.TxtGenerator import TxtGenerator
 
 import time
 import numpy as np
@@ -25,6 +26,7 @@ class Processor:
         self.utilities = Utilities()
         self.json_transcripcion = JsonGenerator()
         self.json_traduccion = JsonGenerator()
+        self.txt_traduccion = TxtGenerator()
         
         self.indice_imagen = 0
         self.formato_manga = None
@@ -152,12 +154,18 @@ class Processor:
         
         ruta_transcripcion = os.path.join(RUTA_LOCAL_TEMPORAL, 'transcripcion.json')
         ruta_traduccion = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.json')
+        ruta_traduccion_txt = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.txt')
+        
         self.json_transcripcion.guardar_en_archivo(ruta_transcripcion)
         self.json_traduccion.guardar_en_archivo(ruta_traduccion)
+        self.txt_traduccion.guardar_en_archivo(ruta_traduccion_txt)
+                                    
         self.app_colab.drive_manager.upload_file(ruta_transcripcion, ruta_carpeta_salida)
         self.app_colab.drive_manager.upload_file(ruta_traduccion, ruta_carpeta_salida)
+        self.app_colab.drive_manager.upload_file(ruta_traduccion_txt, ruta_carpeta_salida)
         os.remove(ruta_transcripcion)
         os.remove(ruta_traduccion)
+        os.remove(ruta_traduccion_txt)
         if opcion_acciones == "Solo traducir" or opcion_acciones == "Limpiar y traducir" and tipo_limpieza != "Limpieza con transparencia":
             self.utilities.guardar_pdf()
             self.app_colab.drive_manager.upload_file(ruta_pdf_resultante, ruta_carpeta_salida)
@@ -253,13 +261,16 @@ class Processor:
             'Formato': self.formato_manga,
             'Globos de texto': []
         })
-
+        self.txt_traduccion.agregar_linea(f"Página {self.indice_imagen + 1}")
+        self.txt_traduccion.agregar_linea("")
         resultados_traduccion = self.text_image_processor.filtrar_bounding_boxes(resultados_traduccion)
         if self.densidad_globos == "Poco denso":
             cajas = [resultado[0] for resultado in resultados_traduccion]
             resultados_traduccion = self.text_image_processor.fusionar_cajas(cajas, 8, 5)
         
+        contator_resultado = 0
         for resultado_traduccion in resultados_traduccion:
+            contator_resultado = contator_resultado + 1
             if self.densidad_globos == "Poco denso":
                 caja_traduccion = resultado_traduccion
             else:
@@ -335,6 +346,11 @@ class Processor:
                     'Texto': texto_traducido
                 }
             )
+            self.txt_traduccion.agregar_linea(contator_resultado)
+            self.txt_traduccion.agregar_linea(texto)
+            self.txt_traduccion.agregar_linea(texto_traducido)
+            self.txt_traduccion.agregar_linea("")
+            
             # Extraer las coordenadas de la caja y asegurarse de que sean enteros
             x_min, y_min = x_tra , y_tra
 
