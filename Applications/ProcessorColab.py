@@ -6,6 +6,7 @@ from Applications.TextImageProcessor import TextImageProcessor
 from Applications.Utilities import Utilities
 from Applications.OCRManager import OCRManager
 from Applications.BubbleDetector import BubbleDetector
+from Applications.ParallelProcessor import ParallelProcessor
 from Applications.JsonGenerator import JsonGenerator
 from Applications.TxtGenerator import TxtGenerator
 
@@ -43,7 +44,8 @@ class Processor:
         }
         self.ocr_manager = OCRManager(ocr_config)  
     
-    def procesar_imagenes(self, ruta_carpeta_entrada, ruta_carpeta_salida, nombre_real_archivo):
+    def procesar_imagenes(self, ruta_carpeta_entrada, ruta_carpeta_salida, nombre_real_archivo, batch_size):
+        parallel_processor = ParallelProcessor( num_processes = batch_size)
         self.json_transcripcion.agregar_entrada('Título', nombre_real_archivo)
         self.json_traduccion.agregar_entrada('Título', nombre_real_archivo)
         # Restablece el valor del progressbar en la ventana principal
@@ -64,6 +66,8 @@ class Processor:
         tipo_limpieza = self.app_colab.dropdown_limpieza.value
         # Ordena los archivos
         archivos_imagen = natsorted(archivos_imagen)
+        # Dividir las imágenes en lotes
+        lotes_imagenes = parallel_processor.dividir_imagenes_en_lotes(archivos_imagen)
         # Genera un archivo PDF
         ruta_archivos_pdf = RUTA_LOCAL_PDFS
         if not os.path.exists(ruta_archivos_pdf):
@@ -81,7 +85,45 @@ class Processor:
         ruta_resultado_limpieza = os.path.join(ruta_carpeta_salida, "Limpieza")
         ruta_resultado_traduccion = os.path.join(ruta_carpeta_salida, "Traducción")
         # Procesa cada imagen en la carpeta
-        for archivo in archivos_imagen:
+        for lote in lotes_imagenes:
+            parallel_processor.procesar_imagenes_en_paralelo(
+                lote,
+                lambda imagenes: self.procesar_lista_imagenes(
+                    imagenes,
+                    opcion_acciones,
+                    tipo_limpieza,
+                    ruta_carpeta_entrada,
+                    ruta_resultado_limpieza,
+                    ruta_resultado_traduccion,
+                    idioma_entrada,
+                    canvas_pdf
+                )
+            )
+        self.app_colab.progressbar_procesamiento.value = 100
+        
+        ruta_transcripcion = os.path.join(RUTA_LOCAL_TEMPORAL, 'transcripcion.json')
+        ruta_traduccion = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.json')
+        ruta_traduccion_txt = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.txt')
+        
+        self.json_transcripcion.guardar_en_archivo(ruta_transcripcion)
+        self.json_traduccion.guardar_en_archivo(ruta_traduccion)
+        self.txt_traduccion.guardar_en_archivo(ruta_traduccion_txt)
+                                    
+        self.app_colab.drive_manager.upload_file(ruta_transcripcion, ruta_carpeta_salida)
+        self.app_colab.drive_manager.upload_file(ruta_traduccion, ruta_carpeta_salida)
+        self.app_colab.drive_manager.upload_file(ruta_traduccion_txt, ruta_carpeta_salida)
+        os.remove(ruta_transcripcion)
+        os.remove(ruta_traduccion)
+        os.remove(ruta_traduccion_txt)
+        if opcion_acciones == "Solo traducir" or opcion_acciones == "Limpiar y traducir" and tipo_limpieza != "Limpieza con transparencia":
+            self.utilities.guardar_pdf()
+            self.app_colab.drive_manager.upload_file(ruta_pdf_resultante, ruta_carpeta_salida)
+            self.app_colab.set_ruta_pdf_resultante(ruta_pdf_resultante)
+            self.app_colab.activar_btn_pdf()
+        self.indice_imagen = 0
+    
+    def procesar_lista_imagenes(self, lotes_imagenes, opcion_acciones, tipo_limpieza, ruta_carpeta_entrada, ruta_resultado_limpieza, ruta_resultado_traduccion, idioma_entrada, canvas_pdf):
+        for archivo in lotes_imagenes:
             # Calcula el valor de progreso
             valor_progreso = (self.indice_imagen / self.total_imagenes) * 100
             # Actualiza la barra de progreso después de un breve retraso
@@ -149,29 +191,6 @@ class Processor:
             self.indice_imagen += 1
             # Libera la memoria de la imagen y los resultados
             del imagen, imagen_copia, self.mascara_global, resultados_limpieza, resultados_traduccion
-
-        self.app_colab.progressbar_procesamiento.value = 100
-        
-        ruta_transcripcion = os.path.join(RUTA_LOCAL_TEMPORAL, 'transcripcion.json')
-        ruta_traduccion = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.json')
-        ruta_traduccion_txt = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.txt')
-        
-        self.json_transcripcion.guardar_en_archivo(ruta_transcripcion)
-        self.json_traduccion.guardar_en_archivo(ruta_traduccion)
-        self.txt_traduccion.guardar_en_archivo(ruta_traduccion_txt)
-                                    
-        self.app_colab.drive_manager.upload_file(ruta_transcripcion, ruta_carpeta_salida)
-        self.app_colab.drive_manager.upload_file(ruta_traduccion, ruta_carpeta_salida)
-        self.app_colab.drive_manager.upload_file(ruta_traduccion_txt, ruta_carpeta_salida)
-        os.remove(ruta_transcripcion)
-        os.remove(ruta_traduccion)
-        os.remove(ruta_traduccion_txt)
-        if opcion_acciones == "Solo traducir" or opcion_acciones == "Limpiar y traducir" and tipo_limpieza != "Limpieza con transparencia":
-            self.utilities.guardar_pdf()
-            self.app_colab.drive_manager.upload_file(ruta_pdf_resultante, ruta_carpeta_salida)
-            self.app_colab.set_ruta_pdf_resultante(ruta_pdf_resultante)
-            self.app_colab.activar_btn_pdf()
-        self.indice_imagen = 0
             
     def preparar_imagenes(self, archivo, ruta_carpeta_entrada):
         self.proceso_terminado = False
