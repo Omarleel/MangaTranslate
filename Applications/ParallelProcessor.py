@@ -1,20 +1,19 @@
 import torch.multiprocessing as mp
 
 class ParallelProcessor:
-    def __init__(self, batch_size=4):
-        self.batch_size = batch_size
-    def procesar_imagenes_en_paralelo(self, lista_imagenes, process_func):
+    def __init__(self):
+         mp.set_start_method('spawn', force=True)
+         
+    def procesar_en_paralelo(self, lista_imagenes, process_func, batch_size = 4):
         try:
             # Dividir las imágenes en lotes para procesamiento paralelo
-            lotes_imagenes = [lista_imagenes[i:i + self.batch_size] for i in range(0, len(lista_imagenes), self.batch_size)]
-            
-            # Asegurarse de que el número de procesos no sea mayor que el número de lotes
-            num_processes =  len(lotes_imagenes)
+            lotes_imagenes =  [lista_imagenes[i:i+batch_size] for i in range(0, len(lista_imagenes), batch_size)]
+            num_processes = len(lotes_imagenes)
             processes = []
             for i in range(num_processes):
                 # Seleccionar un lote de imágenes para cada proceso
                 lote = lotes_imagenes[i]
-                p = mp.Process(target=process_func, args=(lote,))
+                p = mp.Process(target=process_func, args=(lote,), daemon=True)
                 p.start()
                 processes.append(p)
             for p in processes:

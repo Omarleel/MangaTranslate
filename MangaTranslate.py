@@ -12,6 +12,7 @@
 # MangaTranslate = MangaTranslate()
 
 '''EJECUTAR EL PROGRAMA EN ENTORNOS DE ESCRITORIO '''
+import torch
 from Widgets.AppWindow import AppWindow
 from Applications.FileManager import FileManager
 from PyQt5.QtWidgets import QApplication

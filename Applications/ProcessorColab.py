@@ -10,7 +10,6 @@ from Applications.BubbleDetector import BubbleDetector
 from Applications.JsonGenerator import JsonGenerator
 from Applications.TxtGenerator import TxtGenerator
 
-
 import time
 import numpy as np
 import re
@@ -24,6 +23,7 @@ from shapely.geometry import Polygon
 class Processor:
     def __init__(self, app_colab):
         self.app_colab = app_colab
+        self.parallel_processor = ParallelProcessor()
         self.text_image_processor = TextImageProcessor()
         self.utilities = Utilities()
         self.json_transcripcion = JsonGenerator()
@@ -46,7 +46,6 @@ class Processor:
         self.ocr_manager = OCRManager(ocr_config)  
     
     def procesar_imagenes(self, ruta_carpeta_entrada, ruta_carpeta_salida, nombre_real_archivo, batch_size):
-        parallel_processor = ParallelProcessor(batch_size=batch_size)
         self.json_transcripcion.agregar_entrada('Título', nombre_real_archivo)
         self.json_traduccion.agregar_entrada('Título', nombre_real_archivo)
         # Restablece el valor del progressbar en la ventana principal
@@ -84,101 +83,98 @@ class Processor:
         ruta_resultado_limpieza = os.path.join(ruta_carpeta_salida, "Limpieza")
         ruta_resultado_traduccion = os.path.join(ruta_carpeta_salida, "Traducción")
         # Procesa cada imagen en la carpeta
-        def procesar_lista_imagenes(lote_imagenes):
-            for archivo in lote_imagenes:
-                # Calcula el valor de progreso
-                valor_progreso = (self.indice_imagen / self.total_imagenes) * 100
-                # Actualiza la barra de progreso después de un breve retraso
-                self.app_colab.progressbar_procesamiento.value = valor_progreso
-                # Procesar imagenes
-                imagen, imagen_copia, resultados_limpieza, resultados_traduccion = self.preparar_imagenes(archivo, ruta_carpeta_entrada)
-                self.text_image_processor.setImagenCamuflada(imagen.copy())
-                # Crear imágenes PIL para limpieza y traducción
-                self.text_image_processor.pil_image_limpieza = Image.fromarray(cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB))
-                self.text_image_processor.setDrawLimpieza(ImageDraw.Draw(self.text_image_processor.pil_image_limpieza))
+        for archivo in archivos_imagen:
+            # Calcula el valor de progreso
+            valor_progreso = (self.indice_imagen / self.total_imagenes) * 100
+            # Actualiza la barra de progreso después de un breve retraso
+            self.app_colab.progressbar_procesamiento.value = valor_progreso
+            # Procesar imagenes
+            imagen, imagen_copia, resultados_limpieza, resultados_traduccion = self.preparar_imagenes(archivo, ruta_carpeta_entrada)
+            self.text_image_processor.setImagenCamuflada(imagen.copy())
+            # Crear imágenes PIL para limpieza y traducción
+            self.text_image_processor.pil_image_limpieza = Image.fromarray(cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB))
+            self.text_image_processor.setDrawLimpieza(ImageDraw.Draw(self.text_image_processor.pil_image_limpieza))
 
-                self.text_image_processor.pil_image_traduccion = Image.fromarray(cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB))
-                self.text_image_processor.setDrawTraduccion(ImageDraw.Draw(self.text_image_processor.pil_image_traduccion))
-                if self.proceso_terminado:
-                    continue
-                # Inciar con la traduccion del manga
-                self.limpiar_manga_1(imagen, imagen_copia, resultados_limpieza, resultados_traduccion, idioma_entrada)
+            self.text_image_processor.pil_image_traduccion = Image.fromarray(cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB))
+            self.text_image_processor.setDrawTraduccion(ImageDraw.Draw(self.text_image_processor.pil_image_traduccion))
+            if self.proceso_terminado:
+                continue
+            # Inciar con la traduccion del manga
+            self.limpiar_manga_1(imagen, imagen_copia, resultados_limpieza, resultados_traduccion, idioma_entrada)
 
-                imagen_limpia = np.asarray(self.text_image_processor.pil_image_limpieza)
-                imagen_limpia = cv2.cvtColor(imagen_limpia, cv2.COLOR_RGB2BGR)
+            imagen_limpia = np.asarray(self.text_image_processor.pil_image_limpieza)
+            imagen_limpia = cv2.cvtColor(imagen_limpia, cv2.COLOR_RGB2BGR)
 
-                self.traducir_manga()
-                self.valores_traduccion.clear()
+            self.traducir_manga()
+            self.valores_traduccion.clear()
 
-                imagen_traducida = np.asarray(self.text_image_processor.pil_image_traduccion)
-                imagen_traducida = cv2.cvtColor(imagen_traducida, cv2.COLOR_RGB2BGR)
+            imagen_traducida = np.asarray(self.text_image_processor.pil_image_traduccion)
+            imagen_traducida = cv2.cvtColor(imagen_traducida, cv2.COLOR_RGB2BGR)
 
-                if opcion_acciones == "Solo limpiar":
-                    self.app_colab.drive_manager.create_folder(ruta_resultado_limpieza)
+            if opcion_acciones == "Solo limpiar":
+                self.app_colab.drive_manager.create_folder(ruta_resultado_limpieza)
+            elif opcion_acciones == "Solo traducir":
+                self.app_colab.drive_manager.create_folder(ruta_resultado_traduccion)
+            elif opcion_acciones == "Limpiar y traducir":
+                self.app_colab.drive_manager.create_folder(ruta_resultado_limpieza)
+                self.app_colab.drive_manager.create_folder(ruta_resultado_traduccion)
+
+            if tipo_limpieza == "Limpieza con transparencia":
+                archivo_png = os.path.splitext(archivo)[0] + ".png"
+                script_path = os.getcwd()
+                os.chdir(ruta_resultado_limpieza)
+                cv2.imwrite(archivo_png, self.text_image_processor.imagen_con_alpha) # Guardar la imagen resultante en formato PNG
+                os.chdir(script_path)
+            else:
+                ruta_temporal_lim = os.path.join(RUTA_LOCAL_TEMPORAL, f"lim_{archivo}")
+                ruta_temporal_tra = os.path.join(RUTA_LOCAL_TEMPORAL, f"tra_{archivo}")
+                os.makedirs(RUTA_LOCAL_TEMPORAL, exist_ok=True)
+                if opcion_acciones == "Limpiar y traducir":
+                    cv2.imwrite(ruta_temporal_lim, imagen_limpia)
+                    self.app_colab.drive_manager.upload_file(ruta_temporal_lim, ruta_resultado_limpieza, archivo)
+                    cv2.imwrite(ruta_temporal_tra, imagen_traducida)
+                    self.app_colab.drive_manager.upload_file(ruta_temporal_tra, ruta_resultado_traduccion, archivo)
+                    self.utilities.generar_pdf(self.indice_imagen, canvas_pdf, ruta_temporal_tra)
+                    os.remove(ruta_temporal_lim)
+                    os.remove(ruta_temporal_tra)
+                elif opcion_acciones == "Solo limpiar":
+                    cv2.imwrite(ruta_temporal_lim, imagen_limpia)
+                    self.app_colab.drive_manager.upload_file(ruta_temporal_lim, ruta_resultado_limpieza, archivo)
+                    os.remove(ruta_temporal_lim)
                 elif opcion_acciones == "Solo traducir":
-                    self.app_colab.drive_manager.create_folder(ruta_resultado_traduccion)
-                elif opcion_acciones == "Limpiar y traducir":
-                    self.app_colab.drive_manager.create_folder(ruta_resultado_limpieza)
-                    self.app_colab.drive_manager.create_folder(ruta_resultado_traduccion)
+                    cv2.imwrite(ruta_temporal_tra, imagen_traducida)
+                    self.app_colab.drive_manager.upload_file(ruta_temporal_tra, ruta_resultado_traduccion, archivo)
+                    self.utilities.generar_pdf(self.indice_imagen, canvas_pdf, ruta_temporal_tra)
+                    os.remove(ruta_temporal_tra)
 
-                if tipo_limpieza == "Limpieza con transparencia":
-                    archivo_png = os.path.splitext(archivo)[0] + ".png"
-                    script_path = os.getcwd()
-                    os.chdir(ruta_resultado_limpieza)
-                    cv2.imwrite(archivo_png, self.text_image_processor.imagen_con_alpha) # Guardar la imagen resultante en formato PNG
-                    os.chdir(script_path)
-                else:
-                    ruta_temporal_lim = os.path.join(RUTA_LOCAL_TEMPORAL, f"lim_{archivo}")
-                    ruta_temporal_tra = os.path.join(RUTA_LOCAL_TEMPORAL, f"tra_{archivo}")
-                    os.makedirs(RUTA_LOCAL_TEMPORAL, exist_ok=True)
-                    if opcion_acciones == "Limpiar y traducir":
-                        cv2.imwrite(ruta_temporal_lim, imagen_limpia)
-                        self.app_colab.drive_manager.upload_file(ruta_temporal_lim, ruta_resultado_limpieza, archivo)
-                        cv2.imwrite(ruta_temporal_tra, imagen_traducida)
-                        self.app_colab.drive_manager.upload_file(ruta_temporal_tra, ruta_resultado_traduccion, archivo)
-                        self.utilities.generar_pdf(self.indice_imagen, canvas_pdf, ruta_temporal_tra)
-                        os.remove(ruta_temporal_lim)
-                        os.remove(ruta_temporal_tra)
-                    elif opcion_acciones == "Solo limpiar":
-                        cv2.imwrite(ruta_temporal_lim, imagen_limpia)
-                        self.app_colab.drive_manager.upload_file(ruta_temporal_lim, ruta_resultado_limpieza, archivo)
-                        os.remove(ruta_temporal_lim)
-                    elif opcion_acciones == "Solo traducir":
-                        cv2.imwrite(ruta_temporal_tra, imagen_traducida)
-                        self.app_colab.drive_manager.upload_file(ruta_temporal_tra, ruta_resultado_traduccion, archivo)
-                        self.utilities.generar_pdf(self.indice_imagen, canvas_pdf, ruta_temporal_tra)
-                        os.remove(ruta_temporal_tra)
+            # Incrementa el valor de imagen_actual
+            self.indice_imagen += 1
+            # Libera la memoria de la imagen y los resultados
+            del imagen, imagen_copia, self.mascara_global, resultados_limpieza, resultados_traduccion
 
-                # Incrementa el valor de imagen_actual
-                self.indice_imagen += 1
-                # Libera la memoria de la imagen y los resultados
-                del imagen, imagen_copia, self.mascara_global, resultados_limpieza, resultados_traduccion
-
-        resultado = parallel_processor.procesar_imagenes_en_paralelo(archivos_imagen, procesar_lista_imagenes)
-        if resultado:
-            self.app_colab.progressbar_procesamiento.value = 100
-            
-            ruta_transcripcion = os.path.join(RUTA_LOCAL_TEMPORAL, 'transcripcion.json')
-            ruta_traduccion = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.json')
-            ruta_traduccion_txt = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.txt')
-            
-            self.json_transcripcion.guardar_en_archivo(ruta_transcripcion)
-            self.json_traduccion.guardar_en_archivo(ruta_traduccion)
-            self.txt_traduccion.guardar_en_archivo(ruta_traduccion_txt)
-                                        
-            self.app_colab.drive_manager.upload_file(ruta_transcripcion, ruta_carpeta_salida)
-            self.app_colab.drive_manager.upload_file(ruta_traduccion, ruta_carpeta_salida)
-            self.app_colab.drive_manager.upload_file(ruta_traduccion_txt, ruta_carpeta_salida)
-            os.remove(ruta_transcripcion)
-            os.remove(ruta_traduccion)
-            os.remove(ruta_traduccion_txt)
-            if opcion_acciones == "Solo traducir" or opcion_acciones == "Limpiar y traducir" and tipo_limpieza != "Limpieza con transparencia":
-                self.utilities.guardar_pdf()
-                self.app_colab.drive_manager.upload_file(ruta_pdf_resultante, ruta_carpeta_salida)
-                self.app_colab.set_ruta_pdf_resultante(ruta_pdf_resultante)
-                self.app_colab.activar_btn_pdf()
-            self.indice_imagen = 0
-            
+        self.app_colab.progressbar_procesamiento.value = 100
+        
+        ruta_transcripcion = os.path.join(RUTA_LOCAL_TEMPORAL, 'transcripcion.json')
+        ruta_traduccion = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.json')
+        ruta_traduccion_txt = os.path.join(RUTA_LOCAL_TEMPORAL, 'traduccion.txt')
+        
+        self.json_transcripcion.guardar_en_archivo(ruta_transcripcion)
+        self.json_traduccion.guardar_en_archivo(ruta_traduccion)
+        self.txt_traduccion.guardar_en_archivo(ruta_traduccion_txt)
+                                    
+        self.app_colab.drive_manager.upload_file(ruta_transcripcion, ruta_carpeta_salida)
+        self.app_colab.drive_manager.upload_file(ruta_traduccion, ruta_carpeta_salida)
+        self.app_colab.drive_manager.upload_file(ruta_traduccion_txt, ruta_carpeta_salida)
+        os.remove(ruta_transcripcion)
+        os.remove(ruta_traduccion)
+        os.remove(ruta_traduccion_txt)
+        if opcion_acciones == "Solo traducir" or opcion_acciones == "Limpiar y traducir" and tipo_limpieza != "Limpieza con transparencia":
+            self.utilities.guardar_pdf()
+            self.app_colab.drive_manager.upload_file(ruta_pdf_resultante, ruta_carpeta_salida)
+            self.app_colab.set_ruta_pdf_resultante(ruta_pdf_resultante)
+            self.app_colab.activar_btn_pdf()
+        self.indice_imagen = 0 
+    
     def preparar_imagenes(self, archivo, ruta_carpeta_entrada):
         self.proceso_terminado = False
 
