@@ -84,7 +84,7 @@ class AppColab:
         display(self.opcion_densidad_globos)
         
         self.textbox_batch_size = widgets.Text(
-            value=1,  # Valor inicial del textbox
+            value='1',  # Valor inicial del textbox
             description='Tamaño del lote:',
             layout=widgets.Layout(width='80%')
         )
@@ -223,7 +223,7 @@ class AppColab:
     def seleccionar_carpeta(self, _):
         self.desactivar_botones_y_progressbar()
         ruta_carpeta_entrada = self.textbox_ruta_carpeta.value
-        batch_size = self.textbox_batch_size.value
+        batch_size = int(self.textbox_batch_size.value)
         self.resetear_valores_iniciales()
         self.drive_manager.create_folder(RUTA_REMOTA)
         ruta_carpeta_entrada, ruta_carpeta_salida = self.manejar_descarga_drive(ruta_carpeta_entrada)
