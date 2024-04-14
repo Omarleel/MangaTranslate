@@ -43,7 +43,7 @@ class Processor:
         }
         self.ocr_manager = OCRManager(ocr_config)  
     
-    def procesar_imagenes(self, ruta_carpeta_entrada, ruta_carpeta_salida, nombre_real_archivo):
+    def procesar_imagenes(self, ruta_carpeta_entrada, ruta_carpeta_salida, nombre_real_archivo, batch_size):
         self.json_transcripcion.agregar_entrada('Título', nombre_real_archivo)
         self.json_traduccion.agregar_entrada('Título', nombre_real_archivo)
         # Restablece el valor del progressbar en la ventana principal
