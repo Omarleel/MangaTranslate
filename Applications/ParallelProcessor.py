@@ -1,24 +1,26 @@
 import torch.multiprocessing as mp
 
 class ParallelProcessor:
-    def __init__(self, num_processes = 4):
-        self.num_processes = num_processes
-        self.pool = mp.Pool(processes=num_processes)
-
-    def dividir_imagenes_en_lotes(self, imagenes):
-        # Divide las imágenes en lotes basados en el número de procesos
-        batch_size = self.num_processes
-        lotes = [imagenes[i:i + batch_size] for i in range(0, len(imagenes), batch_size)]
-        return lotes
-    
-    def procesar_imagenes_en_paralelo(self, imagenes, process_func):
+    def __init__(self, batch_size=4):
+        self.batch_size = batch_size
+    def procesar_imagenes_en_paralelo(self, lista_imagenes, process_func):
         try:
-            # Procesa las imágenes en paralelo utilizando map_async para manejar excepciones
-            resultados = self.pool.map_async(process_func, imagenes)
-            # Espera a que todos los procesos completen y obtiene los resultados
-            resultados = resultados.get()
-            return resultados
+            # Dividir las imágenes en lotes para procesamiento paralelo
+            lotes_imagenes = [lista_imagenes[i:i + self.batch_size] for i in range(0, len(lista_imagenes), self.batch_size)]
+            
+            # Asegurarse de que el número de procesos no sea mayor que el número de lotes
+            num_processes =  len(lotes_imagenes)
+            processes = []
+            for i in range(num_processes):
+                # Seleccionar un lote de imágenes para cada proceso
+                lote = lotes_imagenes[i]
+                p = mp.Process(target=process_func, args=(lote,))
+                p.start()
+                processes.append(p)
+            for p in processes:
+                p.join()
+            return True
         except Exception as e:
             # Captura cualquier excepción y la imprime
             print(f"Error al procesar imágenes en paralelo: {e}")
-            return None
+            return False

@@ -84,7 +84,7 @@ class AppColab:
         display(self.opcion_densidad_globos)
         
         self.textbox_batch_size = widgets.Text(
-            value='1',  # Valor inicial del textbox
+            value='4',  # Valor inicial del textbox
             description='Tamaño del lote:',
             layout=widgets.Layout(width='80%')
         )
